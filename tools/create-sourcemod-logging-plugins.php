@@ -1,6 +1,26 @@
 <?php
 include_once "class.SourcemodEvents.php";
 
+$script = '#include <sourcemod>
+
+#define PLUGIN_AUTHOR "Jared Ballou (jballou)"
+#define PLUGIN_DESCRIPTION "Game Event Logging"
+#define PLUGIN_LOG_PREFIX "GE"
+#define PLUGIN_NAME "[INS] Game Event Logging"
+#define PLUGIN_URL ""
+#define PLUGIN_VERSION "0.0.1"
+#define PLUGIN_WORKING "1"
+
+public Plugin:myinfo = {
+        name            = PLUGIN_NAME,
+        author          = PLUGIN_AUTHOR,
+        description     = PLUGIN_DESCRIPTION,
+        version         = PLUGIN_VERSION,
+        url             = PLUGIN_URL
+};
+
+';
+
 function ActionEventFieldType($type,$format='code') {
 	$res = array();
 	switch ($type) {
@@ -32,17 +52,20 @@ function ActionEventFieldType($type,$format='code') {
 function ActionEventField($field,$type,$format='code') {
 	$ctype = ActionEventFieldType($type,'code');
 	$code = array();
+	$pf="";
+	$var_name = "i_{$field}";
 	switch ($type) {
+		case "float":
+			$pf="Float:";
 		case "short":
 		case "long":
 		case "byte":
 		case "bool":
-		case "float":
-			$code[] = "\tnew {$field} = GetEvent{$ctype}(event, \"{$field}\");";
+			$code[] = "\tnew {$pf}{$var_name} = GetEvent{$ctype}(event, \"{$field}\");";
 			break;
 		case "string":
-			$code[] = "\tdecl String:{$field}[256];";
-			$code[] = "\tGetEventString(event, \"{$field}\", {$field}, sizeof({$field}));";
+			$code[] = "\tdecl String:{$var_name}[256];";
+			$code[] = "\tGetEventString(event, \"{$field}\", {$var_name}, sizeof({$var_name}));";
 			break;
 		default:
 			$code[] = "// Unable to process {$type} {$field}";
@@ -59,11 +82,11 @@ function ActionEvent($name,$fields) {
 	$log_fields = array();
 	foreach ($fields as $fieldpack => $type) {
 		$field = explode("::",$fieldpack)[1];
-		$log_fields[] = ", {$field}";
+		$log_fields[] = ", i_{$field}";
 		$log.=" {$field} \\\"".ActionEventFieldType($type,'log')."\\\"";
 		$code[] = ActionEventField($field,$type,'code');
 	}
-	$code[] = $log.=implode($log_fields).");";
+	$code[] = $log."\"".implode($log_fields).");";
 //."\"".implode(array_keys($fields),",")
 //	$log = "\tLogToGame(\"[EVENT] triggered \\\"{$name}\\\""
 //	$code[]= $lc."\",".implode(
@@ -89,6 +112,7 @@ function ParseEvents() {
 		}
 	}
 	$hookevents_code[] = "}";
+	echo $GLOBALS['script'];
 	echo implode($hookevents_code,"\n")."\n\n";
 	echo implode($actionevents_code,"\n");
 }
